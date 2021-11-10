@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+	<title>Collectors</title>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet" />
+</head>
+<style type="text/css">
+	body { 
+		margin-left:50px;
+	}
+	th, td {
+		padding: 5px;
+	}
+</style>
+<body>
+	<h2>Сборщики</h2>
+	<h3></h3>
+	<table>
+	<thead ><tr><th style="width: 225px">Автообновление (сек)</th><th>Сортировка</th></tr></thead>
+	</table>
+	<form name="settings">
+		<select style="float:left; margin-right:20px; height: 25px; width: 210px" name="refresh" size="1">
+			<option disabled selected="selected" value="0">Автообновление (сек)</option>
+			<option value="1" >Выкл</option>
+			<option value="2">30</option>
+			<option value="3">60</option>
+		</select>
+		<select style="float:left; margin-right:20px; height: 25px; width: 250px" name="sort" size="1">
+			<option disabled selected="selected" value="0">Сортировка</option>
+			<option value="1">Имя</option>
+			<option value="2">Последняя транзакция</option>
+			<option value="3">Отправлено за последний час</option>
+			<option value="4">Отправлено за последние сутки</option>
+			<option value="5">Отправлено за все время</option>
+		</select>
+		<p><input id="refbtn" style="margin-right:5px; height: 25px" type="button" name="addButton" value="Применить" />
+	</form>
+	
+	<table class="table-striped table-bordered">
+        <thead ><tr><th style="display:none;">Id<p></th><th>Имя<p></th><th>Последняя транзакция<p></th><th>Отправлено за<p>последний час</th>
+		<th>Отправлено за<p>последние сутки</th><th>Отправлено за<p>все время</th></tr></thead>
+        <tbody id="collectors">
+        </tbody>
+    </table>
+    <script>
+	   	function $_GET(keys) {
+			function getElement(arr, keys) {
+			let key = keys.shift();
+			return keys.length ? getElement(arr[key], keys) : arr[key];
+			}
+
+			function setElement(arr, keys, value) {
+				let key = keys.shift();
+				if (keys.length) {
+					arr[key] = {};
+					setElement(arr[key], keys, value)
+				} else {    
+					if (!key) {
+						key = 0;
+						while (key in arr) {
+							key++;
+						}
+					}
+					arr[key] = value;
+				}
+			}
+
+			let get = {};
+			window.location.search.slice(1).split('&').forEach(function(item) {
+				let data = item.split('=');
+				let key = data[0].replace(/\[.*/, '');
+				let value = data[1] ? data[1] : '';
+				if (data[0] !== key) {
+					let subkeys = data[0].match(/(?<=\[).*?(?=\])/g);
+					get[key] = get[key] ? get[key] : {};
+					setElement(get[key], subkeys, value);
+				} else {
+					get[key] = value;
+				}
+			});
+
+			if (keys) {
+				return getElement(get, keys.constructor !== Array ? keys.split() : keys);
+			}
+
+			return get;
+		}
+		
+		async function SortRes (arr, sortMethod) {
+			if (sortMethod == 1) arr.sort(function(a, b){return a.name.localeCompare(b.name)});
+			if (sortMethod == 2) arr.sort(function(a, b){return a.last_ts - b.last_ts});
+			if (sortMethod == 3) arr.sort(function(a, b){return a.hour - b.hour});
+			if (sortMethod == 4) arr.sort(function(a, b){return a.day - b.day});
+			if (sortMethod == 5) arr.sort(function(a, b){return a.total - b.total});
+			return arr;
+		}
+	
+        async function GetCollectors() {
+             const response = await fetch("/api/collectors", {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+             if (response.ok === true) {
+                var collectors = await response.json();
+				collectors = await SortRes(collectors, settings.sort.options[settings.sort.options.selectedIndex].value);
+                let rows = document.querySelector("tbody");
+				let hours=0;
+				let day=0;
+                collectors.forEach(collector => {
+                     rows.append(row(collector));
+                });
+				rows.append(sumRow(collectors));
+            }
+			else document.write("Database query error");
+        }
+
+		function sum(obj,method) {
+				let sum=0;
+				let day=0;
+				let hour=0;
+				let total=0;
+				obj.forEach(el => {
+                    hour += el.hour;
+					day += el.day;
+					total += el.total;
+                });
+				if (method==1) sum=hour;
+				else if (method==2) sum=day;
+				else sum=total;
+				return sum.toFixed(2);
+			}
+			
+        function row(obj) {
+  
+            const tr = document.createElement("tr");
+            tr.setAttribute("data-rowid", obj.id);
+  
+            const idTd = document.createElement("td");
+			idTd.setAttribute("style","display:none;");
+            idTd.append(obj.id);
+            tr.append(idTd);
+
+			const nameTd = document.createElement("td");
+            const nameLink = document.createElement("a");
+			nameLink.setAttribute('href',`payers?collector=${obj.id}&name=${obj.name}&refresh=1`);
+            nameLink.append(obj.name);
+            nameTd.append(nameLink);
+			tr.append(nameTd);
+			
+			const lastTd = document.createElement("td");
+			const date = new Date(obj.last_ts*1000).toLocaleString("ru", {year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric',second: 'numeric'});
+			lastTd.append(date);
+			lastTd.setAttribute("align", "center");
+            tr.append(lastTd);
+  
+            const hourTd = document.createElement("td");
+            hourTd.append(obj.hour.toFixed(2));
+			hourTd.setAttribute("align", "right");
+            tr.append(hourTd);
+			
+			const dayTd = document.createElement("td");
+            dayTd.append(obj.day.toFixed(2));
+			dayTd.setAttribute("align", "right");
+            tr.append(dayTd);
+			
+			const totalTd = document.createElement("td");
+            totalTd.append(obj.total.toFixed(2));
+			totalTd.setAttribute("align", "right");
+            tr.append(totalTd);
+			
+            return tr;
+        }
+		
+		function sumRow(obj) {
+  
+            const tr = document.createElement("tr");
+            tr.setAttribute("data-rowid", obj.id);
+			tr.setAttribute("style","font-weight:bold;");
+  
+            const idTd = document.createElement("td");
+			idTd.setAttribute("style","display:none;");
+            idTd.append("");
+            tr.append(idTd);
+  
+            const nameTd = document.createElement("td");
+            nameTd.append("");
+            tr.append(nameTd);
+			
+			const lastTd = document.createElement("td");
+            lastTd.append("");
+            tr.append(lastTd);
+			
+            const hourTd = document.createElement("td");
+            hourTd.append(sum(obj,1));
+			hourTd.setAttribute("align", "right");
+            tr.append(hourTd);
+			
+			const dayTd = document.createElement("td");
+            dayTd.append(sum(obj,2));
+			dayTd.setAttribute("align", "right");
+            tr.append(dayTd);
+			
+			const totalTd = document.createElement("td");
+            totalTd.append(sum(obj,3));
+			totalTd.setAttribute("align", "right");
+            tr.append(totalTd);
+			
+            return tr;
+        }
+		
+		function redir () {
+			let oldParams=$_GET();
+			var refresh=settings.refresh.options[settings.refresh.options.selectedIndex].value;
+			if (refresh <0 ) refresh=0;
+			var sort=settings.sort.options[settings.sort.options.selectedIndex].value;
+			if (sort < 1 ) sort=1;
+			var newAdr=`?refresh=${refresh}&sort=${sort}`;
+			window.open (newAdr,'_self',false)
+		}
+		
+		document.getElementById("refbtn").addEventListener("click", e => {
+			e.preventDefault();
+			redir ();
+		});
+		
+		
+		let params=$_GET();
+		let time=new Date(Date.now()).toLocaleString("ru", {year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric',second: 'numeric'});
+		document.querySelector("h3").textContent = `${time}`;
+		
+		if (typeof params.refresh == 'undefined') settings.refresh.options.selectedIndex=1;
+		else settings.refresh.options.selectedIndex=params.refresh;
+		if ( settings.refresh.options[settings.refresh.options.selectedIndex].text != 'Выкл' && settings.refresh.options[settings.refresh.options.selectedIndex].text > 0){
+				setTimeout(function(){location.reload();}, settings.refresh.options[settings.refresh.options.selectedIndex].text*1000);
+		}
+		if (typeof params.sort == 'undefined') settings.sort.options.selectedIndex=1;
+		else settings.sort.options.selectedIndex=params.sort;
+		
+		GetCollectors();
+		
+    </script>
+</body>
+</html>

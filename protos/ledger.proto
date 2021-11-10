@@ -1,0 +1,140 @@
+syntax = "proto3";
+
+package ledger;
+
+// gogo plugin toggles
+option (gogoproto.gogoproto_import) = true;
+option (gogoproto.goproto_registration) = true;
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.messagename_all) = true;
+option (gogoproto.populate_all) = true;
+option (gogoproto.sizer_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+// golang option
+option go_package = "ledger";
+// java options
+option java_multiple_files = true;
+option java_outer_classname = "LedgerProto";
+option java_package = "io.btfs.ledger";
+
+import "./gogo.proto";
+
+// Interface exported by the server.
+service Channels {
+  // Creates a channel on the ledger and returns the ID of the ledger
+  rpc CreateChannel(SignedChannelCommit) returns (ChannelID);
+  // Retrieves the state of a channel on the ledger.
+  rpc GetChannelInfo(ChannelID) returns (ChannelInfo);
+  // Closes a channel on the ledger.
+  rpc CloseChannel(SignedChannelState) returns (ChannelClosed);
+  // Retrieves the state of the next closed channel with the given payer
+  // returns OUT_OF_RANGE status if there are no more closed channels
+  rpc GetNextClosedChannel(ClosedChannelCursor) returns (ChannelInfo);
+  // Create an account and return
+  rpc CreateAccount(PublicKey) returns (CreateAccountResult);
+  // Create an account, securely, and return
+  rpc SignedCreateAccount(SignedCreateAccountRequest) returns (SignedCreateAccountResult);
+  // Update an account pub key (BIP 44 compatible)
+  rpc UpdateAccountPubKey(SignedPublicKeyPair) returns (Null);
+  // Transfers funds from one off-chain account to another
+  rpc Transfer(SignedTransferRequest) returns (TransferResult);
+}
+
+message Null {}
+
+message PublicKey {
+  bytes key = 1;
+}
+
+message SignedPublicKey {
+  PublicKey key = 1;
+  bytes signature = 2;
+}
+
+message ChannelCommit {
+  PublicKey payer = 1;
+  PublicKey recipient = 2;
+  int64 amount = 3;
+  int64 payer_id = 4;
+}
+
+message SignedChannelCommit {
+  ChannelCommit channel = 1;
+  bytes signature = 2;
+}
+
+message CreateAccountResult {
+  Account account = 1;
+}
+
+message SignedCreateAccountRequest {
+  PublicKey key = 1;
+  bytes signature = 2;
+  // client version number
+  string client_version_number = 3;
+}
+
+message SignedCreateAccountResult {
+  int64 balance = 1;
+}
+
+message Account {
+  PublicKey address = 1;
+  // Current available balance
+  int64 balance = 2;
+}
+
+message ChannelID {
+  int64 id = 1;
+}
+
+message ChannelInfo {
+  ChannelID id = 1;
+  Account from_account = 2;
+  Account to_account = 3;
+  int64 close_sequence = 4;
+}
+
+message SignedChannelState {
+  ChannelState channel = 1;
+  bytes from_signature = 2;
+  bytes to_signature = 3;
+}
+
+message ClosedChannelCursor {
+  PublicKey payer = 1;
+  int64 close_sequence = 2;
+}
+
+message ChannelState {
+  ChannelID id = 1;
+  int64 sequence = 2;
+  Account from = 3;
+  Account to = 4;
+}
+
+message ChannelClosed {
+  SignedChannelState state = 1;
+}
+
+message SignedPublicKeyPair {
+  PublicKey old_key = 1;
+  PublicKey new_key = 2;
+  bytes old_signature = 3;
+  bytes new_signature = 4;
+}
+
+message TransferRequest {
+  PublicKey payer = 1;
+  PublicKey recipient = 2;
+  int64 amount = 3;
+}
+
+message SignedTransferRequest {
+  TransferRequest transfer_request = 1;
+  bytes signature = 2;
+}
+
+message TransferResult {
+  int64 balance = 1;
+}
