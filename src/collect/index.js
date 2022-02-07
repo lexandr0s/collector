@@ -19,12 +19,14 @@ const createBase = async () => {
 	const sqlstr1 = 'CREATE TABLE IF NOT EXISTS collectors ( \
 		id INTEGER PRIMARY KEY AUTOINCREMENT, \
 		name TEXT, \
-		key TEXT)';
+		key TEXT, \
+		active INTEGER)';
 
 	const sqlstr2 = 'CREATE TABLE IF NOT EXISTS payers ( \
 		id INTEGER PRIMARY KEY AUTOINCREMENT, \
 		name TEXT, \
-		key TEXT)';
+		key TEXT, \
+		active INTEGER)';
 
 	const sqlstr3 = 'CREATE TABLE IF NOT EXISTS transfer ( \
 		id INTEGER PRIMARY KEY AUTOINCREMENT, \
@@ -32,11 +34,18 @@ const createBase = async () => {
 		payer INTEGER, \
 		collector INTEGER, \
 		amount REAL)';
+	
 	  
 	await db.open(base);
 	await db.run(sqlstr1);
 	await db.run(sqlstr2);
 	await db.run(sqlstr3);
+	await db.close();
+	const sqlstr4 = 'UPDATE collectors SET active = 0';
+	const sqlstr5 = 'UPDATE payers SET active = 0';
+	await db.open(base);
+	await db.run(sqlstr4);
+	await db.run(sqlstr5);
 	await db.close();
 }
 
@@ -51,13 +60,13 @@ const addAddress = async (table, name, key) => {
 	const query = await db.get (sql);
 	if (typeof query == 'undefined')
 	{
-		let insSql = `INSERT INTO ${table} (name,key)
-					VALUES ("${name}", "${key}")`;
+		let insSql = `INSERT INTO ${table} (name,key,active)
+					VALUES ("${name}", "${key}", 1)`;
 		await db.run(insSql);
 	}
-	else if ( query.name != name ) {
+	else {
 		let updSql = `UPDATE ${table}
-					SET name = "${name}"
+					SET name = "${name}", active = 1
 					WHERE key = "${key}"`;
 		await db.run(updSql);
 	}
@@ -109,8 +118,9 @@ const transfer = async () => {
 				log.info(`Payer "${payers[y].name}": ` + UBTTtoBTT(transferResult.paymentAmount).toLocaleString().green + ` BTT -> collector "${collectorID.name}" ` + UBTTtoBTT(recipientBalance).toLocaleString().brightGreen + ' BTT');
 			}
 			catch (error) {
-				if (error.message === 'empty balance') log.debug(`Payer ${payers[y].name}: ${error.message}`)
-				else log.error(error);
+				//if (error.message === 'empty balance') log.debug(`Payer ${payers[y].name}: ${error.message}`)
+				//else log.error(error);
+				log.error (`"${payers[y].name}" ${error}`);
 			}
 		}
 	}

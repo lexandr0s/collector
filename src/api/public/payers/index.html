@@ -15,7 +15,7 @@
 	}
 </style>
 <body>
-	<h2>Плательщики для сборщика </h2>
+	<h2>плательщиков для сборщика </h2>
 	<h3></h3>
 	<table>
 	<thead ><tr><th style="width: 225px">Автообновление (сек)</th><th>Сортировка</th></tr></thead>
@@ -33,14 +33,16 @@
 			<option value="2">Последняя транзакция</option>
 			<option value="3">Отправлено за последний час</option>
 			<option value="4">Отправлено за последние сутки</option>
-			<option value="5">Отправлено за все время</option>
+			<option value="5">Отправлено за последнюю неделю</option>
+			<option value="6">Отправлено за последний месяц</option>
+			<option value="7">Отправлено за все время</option>
 		</select>
 		<p><input id="refbtn" style="margin-right:5px; height: 25px" type="button" name="addButton" value="Применить" />
 	</form>
 	
 	<table class="table-striped table-bordered">
         <thead ><tr><th style="display:none;">Id<p></th><th>Имя<p></th><th>Последняя транзакция<p></th><th>Отправлено за<p>последний час</th>
-		<th>Отправлено за<p>последние сутки</th><th>Отправлено за<p>все время</th></tr></thead>
+		<th>Отправлено за<p>последние сутки</th><th>Отправлено за<p>последнюю неделю</th><th>Отправлено за<p>последний месяц</th><th>Отправлено за<p>все время</th></tr></thead>
         <tbody id="collectors">
         </tbody>
     </table>
@@ -93,7 +95,9 @@
 			if (sortMethod == 2) arr.sort(function(a, b){return a.last_ts - b.last_ts});
 			if (sortMethod == 3) arr.sort(function(a, b){return a.hour - b.hour});
 			if (sortMethod == 4) arr.sort(function(a, b){return a.day - b.day});
-			if (sortMethod == 5) arr.sort(function(a, b){return a.total - b.total});
+			if (sortMethod == 5) arr.sort(function(a, b){return a.week - b.week});
+			if (sortMethod == 6) arr.sort(function(a, b){return a.month - b.month});
+			if (sortMethod == 7) arr.sort(function(a, b){return a.total - b.total});
 			return arr;
 		}
 	
@@ -104,6 +108,7 @@
             });
              if (response.ok === true) {
                 var payers = await response.json();
+				document.querySelector("h2").textContent = `${payers.length} ${document.querySelector("h2").textContent}`;
 				payers = await SortRes(payers, settings.sort.options[settings.sort.options.selectedIndex].value);
                 let rows = document.querySelector("tbody");
 				let hours=0;
@@ -120,14 +125,20 @@
 				let sum=0;
 				let day=0;
 				let hour=0;
+				let week=0;
+				let month=0;
 				let total=0;
 				obj.forEach(el => {
                     hour += el.hour;
 					day += el.day;
+					week += el.week;
+					month += el.month;
 					total += el.total;
                 });
 				if (method==1) sum=hour;
 				else if (method==2) sum=day;
+				else if (method==3) sum=week;
+				else if (method==4) sum=month;
 				else sum=total;
 				return sum.toFixed(2);
 			}
@@ -161,6 +172,16 @@
             dayTd.append(obj.day.toFixed(2));
 			dayTd.setAttribute("align", "right");
             tr.append(dayTd);
+			
+			const weekTd = document.createElement("td");
+            weekTd.append(obj.week.toFixed(2));
+			weekTd.setAttribute("align", "right");
+            tr.append(weekTd);
+			
+			const monthTd = document.createElement("td");
+            monthTd.append(obj.month.toFixed(2));
+			monthTd.setAttribute("align", "right");
+            tr.append(monthTd);
 			
 			const totalTd = document.createElement("td");
             totalTd.append(obj.total.toFixed(2));
@@ -198,6 +219,16 @@
             dayTd.append(sum(obj,2));
 			dayTd.setAttribute("align", "right");
             tr.append(dayTd);
+			
+			const weekTd = document.createElement("td");
+            weekTd.append(sum(obj,3));
+			weekTd.setAttribute("align", "right");
+            tr.append(weekTd);
+			
+			const monthTd = document.createElement("td");
+            monthTd.append(sum(obj,4));
+			monthTd.setAttribute("align", "right");
+            tr.append(monthTd);
 			
 			const totalTd = document.createElement("td");
             totalTd.append(sum(obj,3));
