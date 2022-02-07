@@ -1,4 +1,4 @@
-echo off
+@echo off
 title Collector
 echo NodeJS version:
 node -v
