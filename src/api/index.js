@@ -15,7 +15,7 @@ function filterById (arr, id) {
         return (item.id == id);
     });
   };
-
+ 
 const queryCollectors = async () => {
 	try {
 	await db.open(base);
